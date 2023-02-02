@@ -1,0 +1,30 @@
+﻿@page "/upload"
+@inject IHttpClientFactory ClientFactory
+
+<label style=" height:30px;line-height:30px;color:black;background-color:greenyellow;  border-radius: 5px; ">
+    ファイル選択
+    <InputFile style="display:none" OnChange="@(args => FileUpload(args))" />
+</label>
+
+@code {
+    async Task FileUpload(InputFileChangeEventArgs e)
+    {
+        foreach (var file in e.GetMultipleFiles())
+        {
+            var ms = new MemoryStream();
+            await file.OpenReadStream(file.Size).CopyToAsync(ms);
+            ms.Position = 0;
+
+            var fileContent = new StreamContent(ms);
+
+            using var content = new MultipartFormDataContent();
+            content.Add(fileContent, "file", file.Name);
+            var request = new HttpRequestMessage(HttpMethod.Post, "https://localhost:7281" + "/api/upload/file");
+            var client = ClientFactory.CreateClient();
+            {
+                request.Content = content;
+                await client.SendAsync(request);
+            }
+        }
+    }
+}
