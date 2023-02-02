@@ -1,0 +1,34 @@
+﻿@page "/download"
+@using System.Text.Json
+@inject IJSRuntime JSRuntime
+@inject IHttpClientFactory ClientFactory
+
+@foreach (var i in files)
+{
+    <button @onclick="(s => ButtonClick(i))">@i</button>
+}
+
+@code {
+    List<string> files = new List<string>();
+    protected override async Task OnParametersSetAsync()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost:7281" + "/api/getfiles");
+        var client = ClientFactory.CreateClient();
+        var response = await client.SendAsync(request);
+        var getVal = await response.Content.ReadAsStringAsync();
+        files.AddRange(JsonSerializer.Deserialize<string[]>(getVal));
+    }
+
+    async void ButtonClick(string fileName)
+    {
+        var content = new MultipartFormDataContent();
+        content.Add(new StringContent(JsonSerializer.Serialize<string>(fileName)), "file", "file.json");
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost:7281" + "/api/download/file");
+        var client = ClientFactory.CreateClient();
+        request.Content = content;
+        var response = await client.SendAsync(request);
+        var getVal = await response.Content.ReadAsStreamAsync();
+        using var streamRef = new DotNetStreamReference(getVal);
+        await JSRuntime.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+    }
+}
